@@ -1,0 +1,25 @@
+# Environment
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Generated eval data and audio output (large, produced by scripts)
+Tests/dialect_eval_data/
+tts_output/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/

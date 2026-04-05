@@ -1,0 +1,6 @@
+spacy
+asyncio
+openai
+dotenv
+time
+enum
