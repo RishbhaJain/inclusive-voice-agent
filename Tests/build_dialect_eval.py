@@ -79,18 +79,43 @@ def main() -> None:
         print("ERROR: 'datasets' package not installed. Run: pip install datasets soundfile")
         sys.exit(1)
 
-    print("Loading Common Voice 13.0 English test split...")
-    print("(First run downloads ~500MB — subsequent runs use the cache.)\n")
+    # Common Voice requires accepting Mozilla's license on HuggingFace before
+    # downloading. If you haven't done this yet:
+    #   1. Go to https://huggingface.co/datasets/mozilla-foundation/common_voice_17_0
+    #   2. Accept the license (requires a free HuggingFace account)
+    #   3. Run: huggingface-cli login
+    # Then re-run this script.
+    #
+    # We try CV17 first (latest), fall back to CV13, and finally raise a
+    # clear error with instructions if both fail.
+    CV_CANDIDATES = [
+        ("mozilla-foundation/common_voice_17_0", "en"),
+        ("mozilla-foundation/common_voice_13_0", "en"),
+    ]
+    ds = None
+    for repo_id, config in CV_CANDIDATES:
+        try:
+            print(f"Trying {repo_id}...")
+            ds = load_dataset(repo_id, config, split="test", trust_remote_code=False)
+            print(f"Loaded {repo_id}\n")
+            break
+        except Exception as e:
+            err = str(e)
+            if "EmptyDatasetError" in err or "401" in err or "403" in err or "gated" in err.lower():
+                print(f"  ✗ Access denied or dataset gated ({repo_id})")
+            else:
+                print(f"  ✗ Failed to load {repo_id}: {err[:120]}")
 
-    # trust_remote_code=False is safe here; Common Voice is a well-known dataset.
-    # split="test" is intentional: we want held-out clips, not training data,
-    # so our evaluation reflects real-world generalization.
-    ds = load_dataset(
-        "mozilla-foundation/common_voice_13_0",
-        "en",
-        split="test",
-        trust_remote_code=False,
-    )
+    if ds is None:
+        print(
+            "\nERROR: Could not load any Common Voice dataset.\n"
+            "\nCommon Voice requires accepting Mozilla's license on HuggingFace:\n"
+            "  1. Visit https://huggingface.co/datasets/mozilla-foundation/common_voice_17_0\n"
+            "  2. Click 'Access repository' and accept the license (free HF account required)\n"
+            "  3. Run: huggingface-cli login\n"
+            "  4. Re-run this script.\n"
+        )
+        sys.exit(1)
 
     # Tally how many clips we've collected per dialect.
     counts: dict[str, int] = {d: 0 for d in ACCENT_MAP.values()}
