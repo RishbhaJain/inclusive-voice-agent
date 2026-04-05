@@ -1,6 +1,31 @@
-spacy
-asyncio
-openai
-dotenv
-time
-enum
+# Core NLP and AI
+spacy>=3.7
+openai>=1.30
+python-dotenv>=1.0
+
+# Eval output formatting
+tabulate>=0.9
+
+# TTS benchmark (async file writes)
+aiofiles>=23.0
+
+# Dialect eval set builder — streams labeled audio from HuggingFace
+datasets>=2.20
+soundfile>=0.12
+
+# Dialect classifier — ECAPA-TDNN accent model from SpeechBrain
+speechbrain>=1.0
+torch>=2.0
+transformers>=4.30
+librosa>=0.10       # high-quality audio resampling (8 kHz → 16 kHz)
+
+# Server and Twilio phone call integration
+fastapi>=0.111
+uvicorn[standard]>=0.30
+websockets>=12.0
+twilio>=9.0
+pydub>=0.25         # MP3 → PCM resampling for Twilio outbound audio
+audioop-lts>=0.2.1  # Python 3.12+ shim for stdlib audioop (mulaw codec)
+
+# Note: asyncio, time, enum are Python stdlib — never put them in requirements.txt
+# After pip install, also run: python -m spacy download en_core_web_sm

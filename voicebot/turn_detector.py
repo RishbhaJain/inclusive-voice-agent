@@ -16,10 +16,10 @@ class TurnDecision(Enum):
         TALK = 2
 
 class TurnDetector:
-    def __init__(self):
-         self.nlp = spacy.load("en_core_web_sm")
-         self.hard_limit = 2000
-         self.min_silence = 800
+    def __init__(self, min_silence: int = 800, hard_limit: int = 2000):
+        self.nlp = spacy.load("en_core_web_sm")
+        self.min_silence = min_silence
+        self.hard_limit = hard_limit
 
     def is_syntactically_complete(self, text: str) -> bool:
         if not text.strip():
