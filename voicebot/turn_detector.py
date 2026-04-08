@@ -105,14 +105,29 @@ class TurnDetector:
         if last_token.text.lower() in {"a", "an", "the"}:
             return False
 
-        # --- 2. THE STRUCTURAL CHECK (The "Bones") ---
+        # --- 2. SOCIAL / FAREWELL COMPLETENESS ---
+        # Phrases containing a farewell or acknowledgment word are complete social acts
+        # even without a grammatical subject (e.g. "bye", "thanks so much",
+        # "I appreciate it, thank you", "ok great sounds good").
+        # We scan all tokens so the key word can appear anywhere in the utterance.
+        # The dangler check above already rejects genuinely incomplete sentences that
+        # contain these words but trail off (e.g. "thanks for the" ends on DET → False).
+        _SOCIAL_WORDS = {
+            "bye", "goodbye", "thanks", "thank", "ok", "okay",
+            "sure", "alright", "yep", "yup", "nope", "sounds", "great", "perfect",
+        }
+        if (any(t.pos_ == "INTJ" for t in doc)
+                or any(t.text.lower() in _SOCIAL_WORDS for t in doc)):
+            return True
+
+        # --- 3. THE STRUCTURAL CHECK (The "Bones") ---
         has_subject = any(t.dep_ in ["nsubj", "nsubjpass", "expl"] for t in doc)
         has_root = any(t.dep_ == "ROOT" for t in doc)
-        
+
         if not (has_subject and has_root):
             return False
 
-        # --- 3. THE "HUNGRY VERB" CHECK (Transitivity) ---
+        # --- 4. THE "HUNGRY VERB" CHECK (Transitivity) ---
         # "I want", "I am looking", "that's got" end on a bare VERB that needs
         # an object → incomplete. Exception: negated verbs like "I do not know"
         # or "I cannot see" are genuinely complete sentences. We detect negation
@@ -121,7 +136,7 @@ class TurnDetector:
         if last_token.pos_ in ("VERB", "AUX") and not has_negation:
             return False
 
-        # --- 3b. RELATIVE CLAUSE STARTER CHECK ---
+        # --- 4b. RELATIVE CLAUSE STARTER CHECK ---
         # Words like "which", "that", "who", "where" at sentence-end always
         # open a relative clause that has no body yet.
         # spaCy sometimes tags "which" as PRON/dobj, bypassing the DET/SCONJ check.
