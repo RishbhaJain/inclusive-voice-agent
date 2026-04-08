@@ -19,13 +19,20 @@ torch>=2.0
 transformers>=4.30
 librosa>=0.10       # high-quality audio resampling (8 kHz → 16 kHz)
 
-# Server and Twilio phone call integration
-fastapi>=0.111
-uvicorn[standard]>=0.30
-websockets>=12.0
-twilio>=9.0
-pydub>=0.25         # MP3 → PCM resampling for Twilio outbound audio
-audioop-lts>=0.2.1  # Python 3.12+ shim for stdlib audioop (mulaw codec)
+# LiveKit voice agent (replaces Twilio Gather-only server)
+livekit-agents>=1.5
+livekit-plugins-openai>=1.5   # OpenAI LLM + TTS
+livekit-plugins-deepgram>=1.5 # Deepgram streaming STT (~200ms latency)
+livekit-plugins-silero>=1.5   # Silero VAD
+
+# Legacy Twilio server (kept until LiveKit deployment is confirmed working)
+# fastapi>=0.111
+# python-multipart>=0.0.9
+# uvicorn[standard]>=0.30
+# websockets>=12.0
+# twilio>=9.0
+# pydub>=0.25
+# audioop-lts>=0.2.1
 
 # Note: asyncio, time, enum are Python stdlib — never put them in requirements.txt
 # After pip install, also run: python -m spacy download en_core_web_sm

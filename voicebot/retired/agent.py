@@ -23,9 +23,13 @@ Thread safety note:
 """
 
 import asyncio
+import logging
 import re
 from typing import AsyncIterator
 
+from voicebot.call_adapter import CallAdapter
+
+log = logging.getLogger("voicebot")
 from voicebot.client import openai_client
 from voicebot.dialect_classifier import DialectClassifier
 from voicebot.dialect_profiles import PROFILES, DialectProfile
@@ -66,6 +70,11 @@ class VoiceAgent:
         self._detection_count: int = 0
         self._last_detected: str = profile.name
 
+        # Adapts min_silence, hard_limit, and tts_speed to the caller's
+        # observed rhythm over the course of the call.
+        self._adapter = CallAdapter(profile)
+        self._bytes_this_turn: int = 0  # mulaw bytes received in current turn
+
     # ── Public interface called by server.py ───────────────────────────────────
 
     async def on_audio_chunk(self, mulaw_bytes: bytes) -> None:
@@ -78,6 +87,9 @@ class VoiceAgent:
 
         After 2 consistent detections, the profile locks for the call.
         """
+        # Always track bytes for WPM estimation, regardless of dialect lock.
+        self._bytes_this_turn += len(mulaw_bytes)
+
         if self._dialect_locked:
             return
 
@@ -100,8 +112,14 @@ class VoiceAgent:
         if self._detection_count >= 2:
             self._dialect_locked = True
 
+        log.info("🎙  ECAPA detected: %s (count=%d, locked=%s)",
+                 detected_profile.name, self._detection_count, self._dialect_locked)
         if detected_profile.name != self.profile.name:
+            log.info("    Profile switched: %s → %s", self.profile.name, detected_profile.name)
             self._update_profile(detected_profile)
+            # Re-seed the adapter from the newly detected profile's starting
+            # thresholds, discarding observations made under the wrong profile.
+            self._adapter = CallAdapter(detected_profile)
 
     async def on_transcript_update(
         self,
@@ -121,12 +139,57 @@ class VoiceAgent:
         self.transcript_buffer = (self.transcript_buffer + " " + new_text).strip()
         decision = self.detector.evaluate(self.transcript_buffer, silence_ms)
 
+        # Adapt pause thresholds from this observation every turn.
+        # WAIT: the caller resumed, so this silence was within-turn → adjust min_silence.
+        # TALK: the caller finished, so this silence was end-of-turn → adjust hard_limit.
+        self._adapter.observe_pause(silence_ms, was_end_of_turn=(decision == TurnDecision.TALK))
+        self.detector.min_silence = self._adapter.min_silence
+        self.detector.hard_limit = self._adapter.hard_limit
+        log.info("📊  %s  →  decision=%s", self._adapter, decision.name)
+
         if decision != TurnDecision.TALK:
             return None
+
+        # Adapt TTS speed from this turn's speech rate.
+        duration_s = self._bytes_this_turn / 8_000  # mulaw 8kHz = 8000 bytes/s
+        words = len(self.transcript_buffer.split())
+        self._adapter.observe_speech_rate(words, duration_s)
+        self.profile.tts_speed = self._adapter.tts_speed
+        self._bytes_this_turn = 0
 
         user_text = self.transcript_buffer
         self.transcript_buffer = ""   # reset for next turn
         return self._respond(user_text)
+
+    async def respond_text(self, new_text: str, silence_ms: int) -> str | None:
+        """
+        Gather-only server entry point. Same adapter + TurnDetector logic as
+        on_transcript_update, but returns plain text instead of TTS audio.
+
+        Returns the agent's reply string if TurnDetector says TALK, else None.
+        """
+        self.transcript_buffer = (self.transcript_buffer + " " + new_text).strip()
+        self._bytes_this_turn += len(new_text.encode()) * 100  # rough byte estimate
+
+        decision = self.detector.evaluate(self.transcript_buffer, silence_ms)
+
+        self._adapter.observe_pause(silence_ms, was_end_of_turn=(decision == TurnDecision.TALK))
+        self.detector.min_silence = self._adapter.min_silence
+        self.detector.hard_limit = self._adapter.hard_limit
+        log.info("📊  %s  →  decision=%s", self._adapter, decision.name)
+
+        if decision != TurnDecision.TALK:
+            return None
+
+        duration_s = self._bytes_this_turn / 8_000
+        words = len(self.transcript_buffer.split())
+        self._adapter.observe_speech_rate(words, duration_s)
+        self.profile.tts_speed = self._adapter.tts_speed
+        self._bytes_this_turn = 0
+
+        user_text = self.transcript_buffer
+        self.transcript_buffer = ""
+        return await self._get_llm_response(user_text)
 
     # ── Private helpers ────────────────────────────────────────────────────────
 

@@ -23,3 +23,6 @@ tts_output/
 # IDE
 .vscode/
 .idea/
+
+# Pretrained model symlinks (point to local HuggingFace cache, broken on other machines)
+pretrained_models/

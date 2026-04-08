@@ -94,7 +94,7 @@ def _load_model():
     Downloads ~20 MB to ~/.cache/huggingface/ on first call.
     """
     try:
-        from speechbrain.pretrained import EncoderClassifier
+        from speechbrain.inference import EncoderClassifier
     except ImportError:
         raise ImportError(
             "speechbrain is required for dialect classification. "

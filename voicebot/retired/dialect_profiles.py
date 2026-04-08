@@ -51,7 +51,7 @@ PROFILES: dict[str, DialectProfile] = {
     "neutral": DialectProfile(
         name="neutral",
         min_silence=800,
-        hard_limit=2000,
+        hard_limit=20000,
         tts_voice="alloy",    # TODO: confirm after TTS benchmark
         tts_speed=1.0,
         system_prompt_tone=(
