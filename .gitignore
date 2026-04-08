@@ -15,6 +15,7 @@ build/
 
 # Generated eval data and audio output (large, produced by scripts)
 Tests/dialect_eval_data/
+Tests/raw_sample/
 tts_output/
 
 # macOS

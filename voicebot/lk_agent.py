@@ -42,11 +42,13 @@ from livekit.agents import (
     UserStateChangedEvent,
     WorkerOptions,
     cli,
+    llm,
 )
 from livekit.plugins import deepgram, openai, silero
 
 from voicebot.call_adapter import AdapterConfig, CallAdapter
 from voicebot.turn_detector import SpacyTurnDetector
+from voicebot.vehicle_context import fetch_context_by_vehicle, format_vehicle_context
 
 load_dotenv(find_dotenv())
 
@@ -57,8 +59,62 @@ if not log.handlers:
     _h.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", datefmt="%H:%M:%S"))
     log.addHandler(_h)
 
-GREETING = "Hello, welcome to the dealership. How can I help you today?"
+GREETING = (
+    "Hello, welcome to the service center. "
+    "What can I help you with today, and what vehicle are you calling about?"
+)
 LLM_MODEL = "gpt-4o-mini"
+
+SYSTEM_PROMPT = (
+    "You are a professional, helpful service assistant for a car dealership. "
+    "Be concise and friendly — callers are on the phone, so keep responses brief.\n\n"
+    "When a caller mentions their vehicle make, model, and year, immediately call the "
+    "`lookup_vehicle_recalls` tool to check for open safety recalls and owner complaints. "
+    "Do not wait — call it as soon as you have all three values.\n\n"
+    "When presenting recall results:\n"
+    "- Recalls found: state each one clearly, note repairs are free at any authorized dealer, "
+    "and offer to help schedule service.\n"
+    "- No recalls: say so explicitly (e.g. 'Good news — no open recalls on file for your vehicle.').\n"
+    "- Tool fails: say you're having trouble reaching the recall database and offer to connect "
+    "them with a service advisor.\n\n"
+    "Never speculate about recalls from your training knowledge — only report what the tool returns."
+)
+
+
+class DealershipAgent(Agent):
+    """
+    Agent subclass that adds a lookup_vehicle_recalls tool.
+    The LLM calls this tool as soon as the caller identifies their vehicle.
+    """
+
+    def __init__(self, tts_speed: float = 1.0) -> None:
+        super().__init__(
+            instructions=SYSTEM_PROMPT,
+            tts=openai.TTS(voice="alloy", speed=tts_speed),
+        )
+
+    @llm.function_tool
+    async def lookup_vehicle_recalls(
+        self,
+        make: str,
+        model: str,
+        year: str,
+    ) -> str:
+        """
+        Look up open safety recalls and owner complaints for the caller's vehicle
+        from the NHTSA database. Call this as soon as the caller provides their
+        vehicle make, model, and year.
+
+        Args:
+            make:  Vehicle manufacturer, e.g. Toyota, Ford, Honda.
+            model: Vehicle model name, e.g. RAV4, F-150, Civic.
+            year:  Four-digit model year, e.g. 2021.
+        """
+        log.info("Fetching NHTSA context for %s %s %s", year, make, model)
+        ctx = await fetch_context_by_vehicle(make, model, year)
+        result = format_vehicle_context(ctx)
+        log.info("NHTSA context fetched — urgency=%s recalls=%d", ctx["urgency"], len(ctx["recalls"]))
+        return result
 
 
 async def entrypoint(ctx: JobContext) -> None:
@@ -88,13 +144,7 @@ async def entrypoint(ctx: JobContext) -> None:
         },
     )
 
-    agent = Agent(
-        instructions=(
-            "You are a professional and helpful car dealership assistant. "
-            "Be concise, clear, and friendly."
-        ),
-        tts=openai.TTS(voice="alloy", speed=config.tts_speed),
-    )
+    agent = DealershipAgent(tts_speed=config.tts_speed)
 
     @session.on("user_state_changed")
     def on_user_state_changed(event: UserStateChangedEvent) -> None:
