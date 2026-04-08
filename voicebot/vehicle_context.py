@@ -125,9 +125,10 @@ def format_vehicle_context(ctx: dict[str, Any]) -> str:
     if recalls:
         lines.append(f"Open Recalls ({len(recalls)}):")
         for i, r in enumerate(recalls, 1):
-            lines.append(f"  {i}. Campaign {r['campaign']}: {r['component']}")
+            line = f"  {i}. {r['component']}"
             if r["consequence"]:
-                lines.append(f"     Consequence: {r['consequence']}")
+                line += f" — {r['consequence']}"
+            lines.append(line)
     else:
         lines.append("Open Recalls: None found.")
 

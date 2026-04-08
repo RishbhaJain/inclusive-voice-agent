@@ -68,11 +68,13 @@ LLM_MODEL = "gpt-4o-mini"
 SYSTEM_PROMPT = (
     "You are a professional, helpful service assistant for a car dealership. "
     "Be concise and friendly — callers are on the phone, so keep responses brief.\n\n"
-    "When a caller mentions their vehicle make, model, and year, immediately call the "
-    "`lookup_vehicle_recalls` tool to check for open safety recalls and owner complaints. "
-    "Do not wait — call it as soon as you have all three values.\n\n"
-    "When presenting recall results:\n"
-    "- Recalls found: state each one clearly, note repairs are free at any authorized dealer, "
+    "When a caller mentions their vehicle make, model, and year, silently call the "
+    "`lookup_vehicle_recalls` tool to fetch recall data in the background. "
+    "Do NOT mention recalls or volunteer this information unprompted — just answer "
+    "whatever the caller actually asked about.\n\n"
+    "Only discuss recalls if the caller explicitly asks (e.g. 'are there any recalls?', "
+    "'is there a recall on my car?'). When they do ask:\n"
+    "- Recalls found: state each one briefly, note repairs are free at any authorized dealer, "
     "and offer to help schedule service.\n"
     "- No recalls: say so explicitly (e.g. 'Good news — no open recalls on file for your vehicle.').\n"
     "- Tool fails: say you're having trouble reaching the recall database and offer to connect "
@@ -90,7 +92,7 @@ class DealershipAgent(Agent):
     def __init__(self, tts_speed: float = 1.0) -> None:
         super().__init__(
             instructions=SYSTEM_PROMPT,
-            tts=openai.TTS(voice="alloy", speed=tts_speed),
+            tts=openai.TTS(voice="nova", speed=tts_speed),
         )
 
     @llm.function_tool
@@ -124,7 +126,7 @@ async def entrypoint(ctx: JobContext) -> None:
     """
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
 
-    config = AdapterConfig(min_silence=800, hard_limit=20000, tts_speed=1.0)
+    config = AdapterConfig(min_silence=500, hard_limit=20000, tts_speed=1.0)
     adapter = CallAdapter(config)
 
     # Timestamps for WPM measurement: track when the caller starts and stops speaking.

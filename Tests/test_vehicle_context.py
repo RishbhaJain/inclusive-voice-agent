@@ -214,7 +214,7 @@ class TestFormatVehicleContext:
         output = format_vehicle_context(ctx)
         assert "[VEHICLE CONTEXT — 2021 Toyota RAV4]" in output
 
-    def test_shows_recall_campaign_and_consequence(self):
+    def test_shows_recall_component_and_consequence_without_campaign_id(self):
         ctx = {
             "vehicle": {"make": "Toyota", "model": "RAV4", "year": "2021"},
             "recalls": [{
@@ -227,7 +227,7 @@ class TestFormatVehicleContext:
             "urgency": "HIGH",
         }
         output = format_vehicle_context(ctx)
-        assert "23V865000" in output
+        assert "23V865000" not in output
         assert "AIR BAGS" in output
         assert "Increased injury risk" in output
 
