@@ -44,7 +44,7 @@ from livekit.agents import (
     cli,
     llm,
 )
-from livekit.plugins import deepgram, openai, silero
+from livekit.plugins import cartesia, deepgram, openai, silero
 
 from voicebot.call_adapter import AdapterConfig, CallAdapter
 from voicebot.turn_detector import SpacyTurnDetector
@@ -89,10 +89,13 @@ class DealershipAgent(Agent):
     The LLM calls this tool as soon as the caller identifies their vehicle.
     """
 
-    def __init__(self, tts_speed: float = 1.0) -> None:
+    def __init__(self) -> None:
         super().__init__(
             instructions=SYSTEM_PROMPT,
-            tts=openai.TTS(voice="nova", speed=tts_speed),
+            tts=cartesia.TTS(
+                model="sonic-2",
+                voice="79a125e8-cd45-4c13-8a67-188112f4dd22",  # Cartesia "Barbershop Man" — warm, natural
+            ),
         )
 
     @llm.function_tool
@@ -146,7 +149,7 @@ async def entrypoint(ctx: JobContext) -> None:
         },
     )
 
-    agent = DealershipAgent(tts_speed=config.tts_speed)
+    agent = DealershipAgent()
 
     @session.on("user_state_changed")
     def on_user_state_changed(event: UserStateChangedEvent) -> None:
