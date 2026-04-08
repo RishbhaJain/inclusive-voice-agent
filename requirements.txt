@@ -3,39 +3,14 @@ spacy>=3.7
 openai>=1.30
 python-dotenv>=1.0
 
-# Eval output formatting
-tabulate>=0.9
-
-# TTS benchmark (async file writes)
-aiofiles>=23.0
-
-# Dialect eval set builder — streams labeled audio from HuggingFace
-datasets>=2.20
-soundfile>=0.12
-
-# Dialect classifier — ECAPA-TDNN accent model from SpeechBrain
-speechbrain>=1.0
-torch>=2.0
-transformers>=4.30
-librosa>=0.10       # high-quality audio resampling (8 kHz → 16 kHz)
-
 # NHTSA recall lookups (vehicle context for the voice agent)
 httpx>=0.27
 
-# LiveKit voice agent (replaces Twilio Gather-only server)
+# LiveKit voice agent
 livekit-agents>=1.5
 livekit-plugins-openai>=1.5   # OpenAI LLM + TTS
 livekit-plugins-deepgram>=1.5 # Deepgram streaming STT (~200ms latency)
 livekit-plugins-silero>=1.5   # Silero VAD
-
-# Legacy Twilio server (kept until LiveKit deployment is confirmed working)
-# fastapi>=0.111
-# python-multipart>=0.0.9
-# uvicorn[standard]>=0.30
-# websockets>=12.0
-# twilio>=9.0
-# pydub>=0.25
-# audioop-lts>=0.2.1
 
 # Note: asyncio, time, enum are Python stdlib — never put them in requirements.txt
 # After pip install, also run: python -m spacy download en_core_web_sm
