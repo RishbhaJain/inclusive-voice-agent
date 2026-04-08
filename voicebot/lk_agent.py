@@ -129,7 +129,7 @@ async def entrypoint(ctx: JobContext) -> None:
     """
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
 
-    config = AdapterConfig(min_silence=500, hard_limit=20000, tts_speed=1.0)
+    config = AdapterConfig(min_silence=500, hard_limit=5000, tts_speed=1.0)
     adapter = CallAdapter(config)
 
     # Timestamps for WPM measurement: track when the caller starts and stops speaking.

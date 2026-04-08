@@ -34,7 +34,7 @@ class CallAdapter:
     MIN_SILENCE_FLOOR: int = 400    # ms — below this, agent is too trigger-happy
     MIN_SILENCE_CEIL: int  = 2500   # ms — above this, caller experience feels laggy
     HARD_LIMIT_FLOOR: int  = 1000    # ms
-    HARD_LIMIT_CEIL: int   = 20000  # ms — raised for testing
+    HARD_LIMIT_CEIL: int   = 5000   # ms
 
     # WPM baseline and scale for tts_speed mapping.
     # At WPM_BASELINE, tts_speed = 1.0.
