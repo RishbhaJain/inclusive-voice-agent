@@ -1,0 +1,12 @@
+# Runtime dependencies for the LiveKit voice agent only.
+# The full requirements.txt includes torch/speechbrain/librosa for the
+# offline dialect eval pipeline — those are not needed at runtime.
+
+spacy>=3.7
+python-dotenv>=1.0
+httpx>=0.27
+
+livekit-agents>=1.5
+livekit-plugins-openai>=1.5
+livekit-plugins-deepgram>=1.5
+livekit-plugins-silero>=1.5
