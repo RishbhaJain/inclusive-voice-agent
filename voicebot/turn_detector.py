@@ -1,13 +1,6 @@
 from enum import Enum
+
 import spacy
-
-import asyncio
-import time
-
-from openai import AsyncOpenAI
-from dotenv import load_dotenv, find_dotenv
-load_dotenv(find_dotenv())
-client = AsyncOpenAI()
 
 
 class TurnDecision(Enum):
