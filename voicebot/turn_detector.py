@@ -1,13 +1,6 @@
 from enum import Enum
+
 import spacy
-
-import asyncio
-import time
-
-from openai import AsyncOpenAI
-from dotenv import load_dotenv, find_dotenv
-load_dotenv(find_dotenv())
-client = AsyncOpenAI()
 
 
 class TurnDecision(Enum):
@@ -90,7 +83,11 @@ class TurnDetector:
             return False
         
         doc = self.nlp(text)
-        last_token = doc[-1]
+        content_tokens = [token for token in doc if not token.is_punct]
+        if not content_tokens:
+            return False
+        last_token = content_tokens[-1]
+        terminal_mark = doc[-1].text if doc[-1].is_punct else ""
 
         # --- 1. THE DANGLER CHECK (Functional Incompleteness) ---
         # These Parts of Speech (POS) literally cannot end a sentence.
@@ -116,15 +113,47 @@ class TurnDetector:
             "bye", "goodbye", "thanks", "thank", "ok", "okay",
             "sure", "alright", "yep", "yup", "nope", "sounds", "great", "perfect",
         }
-        if (any(t.pos_ == "INTJ" for t in doc)
-                or any(t.text.lower() in _SOCIAL_WORDS for t in doc)):
+        if any(t.text.lower() in _SOCIAL_WORDS for t in doc):
             return True
 
         # --- 3. THE STRUCTURAL CHECK (The "Bones") ---
         has_subject = any(t.dep_ in ["nsubj", "nsubjpass", "expl"] for t in doc)
         has_root = any(t.dep_ == "ROOT" for t in doc)
 
-        if not (has_subject and has_root):
+        # Conversational ellipsis often drops the subject while preserving a
+        # complete predicate ("Totally want the blue one"). Treat it as complete
+        # only when the root is a verb with an explicit object.
+        has_object = any(t.dep_ in ["dobj", "obj", "attr", "oprd"] for t in doc)
+        elliptical_predicate = any(
+            t.dep_ == "ROOT" and t.pos_ == "VERB" for t in doc
+        ) and has_object
+
+        # Short adverbial answers can also be complete turns, as long as they
+        # contain a concrete noun phrase ("Probably around next month or so").
+        standalone_adverbial = (
+            content_tokens[0].text.lower() in {"probably", "maybe"}
+            and any(t.pos_ in {"NOUN", "PROPN"} for t in content_tokens)
+        )
+        complete_question = terminal_mark == "?" and has_root
+
+        if not has_root or not (
+            has_subject
+            or elliptical_predicate
+            or standalone_adverbial
+            or complete_question
+        ):
+            return False
+
+        root = next(t for t in doc if t.dep_ == "ROOT")
+        root_dependents = {child.dep_ for child in root.children}
+        incomplete_auxiliary = (
+            len(content_tokens) <= 2
+            and root.lemma_.lower() in {"do", "be", "have"}
+            and not root_dependents.intersection(
+                {"acomp", "attr", "ccomp", "dobj", "obj", "oprd", "xcomp"}
+            )
+        )
+        if incomplete_auxiliary:
             return False
 
         # --- 4. THE "HUNGRY VERB" CHECK (Transitivity) ---
@@ -133,14 +162,22 @@ class TurnDetector:
         # or "I cannot see" are genuinely complete sentences. We detect negation
         # via the `neg` dependency (attached to the verb by spaCy).
         has_negation = any(t.dep_ == "neg" for t in doc)
-        if last_token.pos_ in ("VERB", "AUX") and not has_negation:
+        if (
+            last_token.pos_ in ("VERB", "AUX")
+            and not has_negation
+            and not terminal_mark
+        ):
             return False
 
         # --- 4b. RELATIVE CLAUSE STARTER CHECK ---
         # Words like "which", "that", "who", "where" at sentence-end always
         # open a relative clause that has no body yet.
         # spaCy sometimes tags "which" as PRON/dobj, bypassing the DET/SCONJ check.
-        if last_token.text.lower() in {"which", "that", "who", "whom", "where", "when", "how", "why"}:
+        if (
+            last_token.text.lower()
+            in {"which", "that", "who", "whom", "where", "when", "how", "why"}
+            and not terminal_mark
+        ):
             return False
 
         return True
@@ -161,6 +198,3 @@ class TurnDetector:
         if self.is_syntactically_complete(last_utterance):
             return TurnDecision.TALK
         return TurnDecision.WAIT
-        
-    
-        
