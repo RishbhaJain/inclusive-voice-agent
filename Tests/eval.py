@@ -289,6 +289,8 @@ def run_benchmarks(dialect_filter: str | None = None):
     else:
         print("\nAll cases passed!")
 
+    return len(failures)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -299,4 +301,4 @@ if __name__ == "__main__":
         help="Run only cases for a specific dialect",
     )
     args = parser.parse_args()
-    run_benchmarks(dialect_filter=args.dialect)
+    raise SystemExit(run_benchmarks(dialect_filter=args.dialect))
